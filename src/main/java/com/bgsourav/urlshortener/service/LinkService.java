@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bgsourav.urlshortener.domain.Link;
 import com.bgsourav.urlshortener.dto.ShortenRequest;
 import com.bgsourav.urlshortener.dto.ShortenResponse;
+import com.bgsourav.urlshortener.dto.LinkStatsResponse;
 import com.bgsourav.urlshortener.exception.AliasConflictException;
 import com.bgsourav.urlshortener.exception.LinkNotFoundException;
 import com.bgsourav.urlshortener.repository.LinkRepository;
@@ -54,6 +55,17 @@ public class LinkService {
                 .orElseThrow(() -> new LinkNotFoundException(code));
         link.recordAccess(java.time.Instant.now());
         return link.getLongUrl();
+    }
+
+    public LinkStatsResponse stats(String code) {
+        Link link = linkRepository.findByCode(code)
+                .orElseThrow(() -> new LinkNotFoundException(code));
+        return new LinkStatsResponse(
+                link.getCode(),
+                link.getLongUrl(),
+                link.getClickCount(),
+                link.getCreatedAt(),
+                link.getLastAccessedAt());
     }
 
     private ShortenResponse createLink(String longUrl, String normalizedUrl) {

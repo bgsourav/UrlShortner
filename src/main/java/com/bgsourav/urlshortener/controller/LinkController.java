@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bgsourav.urlshortener.dto.ShortenRequest;
 import com.bgsourav.urlshortener.dto.ShortenResponse;
+import com.bgsourav.urlshortener.dto.LinkStatsResponse;
 import com.bgsourav.urlshortener.service.LinkService;
 
 @RestController
@@ -34,5 +35,10 @@ public class LinkController {
         return ResponseEntity.status(HttpStatus.MOVED_PERMANENTLY)
                 .location(URI.create(linkService.resolve(code)))
                 .build();
+    }
+
+    @GetMapping("/{code}/stats")
+    public LinkStatsResponse stats(@PathVariable String code) {
+        return linkService.stats(code);
     }
 }
