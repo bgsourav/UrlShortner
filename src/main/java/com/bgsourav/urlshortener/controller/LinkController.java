@@ -2,6 +2,7 @@ package com.bgsourav.urlshortener.controller;
 
 import java.net.URI;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,7 +25,7 @@ public class LinkController {
     }
 
     @PostMapping("/shorten")
-    public ResponseEntity<ShortenResponse> shorten(@RequestBody ShortenRequest request) {
+    public ResponseEntity<ShortenResponse> shorten(@Valid @RequestBody ShortenRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(linkService.create(request));
     }
 

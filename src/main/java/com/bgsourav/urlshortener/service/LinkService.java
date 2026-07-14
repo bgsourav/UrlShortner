@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.bgsourav.urlshortener.domain.Link;
 import com.bgsourav.urlshortener.dto.ShortenRequest;
 import com.bgsourav.urlshortener.dto.ShortenResponse;
+import com.bgsourav.urlshortener.exception.AliasConflictException;
 import com.bgsourav.urlshortener.exception.LinkNotFoundException;
 import com.bgsourav.urlshortener.repository.LinkRepository;
 
@@ -34,6 +35,9 @@ public class LinkService {
 
     public ShortenResponse create(ShortenRequest request) {
         String normalizedUrl = normalize(request.url());
+        if (request.alias() != null) {
+            return createAlias(request.url(), normalizedUrl, request.alias());
+        }
         return linkRepository.findFirstByNormalizedUrl(normalizedUrl)
                 .map(this::toResponse)
                 .orElseGet(() -> createLink(request.url(), normalizedUrl));
@@ -57,6 +61,15 @@ public class LinkService {
             }
         }
         throw new IllegalStateException("Unable to generate a unique short code");
+    }
+
+    private ShortenResponse createAlias(String longUrl, String normalizedUrl, String alias) {
+        Link link = new Link(alias, longUrl, normalizedUrl, alias);
+        try {
+            return toResponse(linkRepository.saveAndFlush(link));
+        } catch (DataIntegrityViolationException exception) {
+            throw new AliasConflictException(alias);
+        }
     }
 
     private ShortenResponse toResponse(Link link) {

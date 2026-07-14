@@ -1,4 +1,6 @@
 package com.bgsourav.urlshortener.dto;
 
-public record ShortenRequest(String url, String alias) {
+import com.bgsourav.urlshortener.validation.ValidAlias;
+
+public record ShortenRequest(String url, @ValidAlias String alias) {
 }
