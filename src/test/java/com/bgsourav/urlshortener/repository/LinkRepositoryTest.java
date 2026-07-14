@@ -18,13 +18,14 @@ class LinkRepositoryTest {
 
     @Test
     void findsLinksByCodeAndLongUrl() {
-        Link link = linkRepository.save(new Link("abc123", "https://example.com/page", null));
+        Link link = linkRepository.save(new Link("abc123", "https://example.com/page", "https://example.com/page", null));
 
         assertThat(link.getId()).isNotNull();
         assertThat(link.getCreatedAt()).isNotNull();
         assertThat(link.getClickCount()).isZero();
         assertThat(linkRepository.findByCode("abc123")).contains(link);
         assertThat(linkRepository.findByLongUrl("https://example.com/page")).containsExactly(link);
+        assertThat(linkRepository.findFirstByNormalizedUrl("https://example.com/page")).contains(link);
         assertThat(linkRepository.findByLongUrl("https://example.com/other")).isEqualTo(List.of());
     }
 }

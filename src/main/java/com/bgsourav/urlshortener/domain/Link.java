@@ -24,6 +24,9 @@ public class Link {
     @Column(nullable = false)
     private String longUrl;
 
+    @Column(nullable = false)
+    private String normalizedUrl;
+
     private String alias;
 
     @Column(nullable = false, updatable = false)
@@ -37,9 +40,10 @@ public class Link {
     protected Link() {
     }
 
-    public Link(String code, String longUrl, String alias) {
+    public Link(String code, String longUrl, String normalizedUrl, String alias) {
         this.code = code;
         this.longUrl = longUrl;
+        this.normalizedUrl = normalizedUrl;
         this.alias = alias;
         this.createdAt = Instant.now();
     }
@@ -54,6 +58,10 @@ public class Link {
 
     public String getLongUrl() {
         return longUrl;
+    }
+
+    public String getNormalizedUrl() {
+        return normalizedUrl;
     }
 
     public String getAlias() {

@@ -12,4 +12,6 @@ public interface LinkRepository extends JpaRepository<Link, Long> {
     Optional<Link> findByCode(String code);
 
     List<Link> findByLongUrl(String longUrl);
+
+    Optional<Link> findFirstByNormalizedUrl(String normalizedUrl);
 }
