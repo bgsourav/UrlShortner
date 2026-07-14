@@ -1,43 +1,59 @@
 # URL Shortener
 
-A small Spring Boot service that creates short URLs and redirects them to their original destinations.
+A deliberately small Spring Boot service for creating short links, redirecting them, and viewing basic click statistics.
 
-## Install
+## Requirements
 
-Requires Java 21. The Maven wrapper downloads the required Maven version automatically.
+- Java 21
+- No separate Maven installation is needed; the Maven wrapper is included.
+
+## Build, run, and test
 
 ```bash
 ./mvnw clean package
-```
-
-## Run
-
-```bash
 ./mvnw spring-boot:run
-```
-
-The service runs on `http://localhost:8080`. Create a link with `POST /shorten`:
-
-```json
-{
-  "url": "https://example.com"
-}
-```
-
-Use the returned `shortUrl`, or request `GET /{code}`, to receive a permanent redirect. Link counters are available at `GET /{code}/stats`.
-
-## Test
-
-```bash
 ./mvnw test
 ./mvnw test -Dtest=LinkServiceTest
 ```
 
-## Design decisions
+The application starts on `http://localhost:8080`. Development data is stored in file-backed H2 under `data/`.
 
-- Codes are seven-character base62 values from `SecureRandom`, giving a 62^7 (~3.5 trillion) space. The database unique constraint and bounded retry protect against collisions.
-- Generated links are idempotent for the same normalized URL; the original URL is retained for redirects. Custom aliases always create a separate mapping and must be unique.
-- Redirects use HTTP 301 because short links are permanent mappings.
-- URL validation accepts only `http` and `https` URLs with a host, caps input at 512 characters, and makes no outbound reachability checks.
+## API
+
+Create a generated short link:
+
+```bash
+curl -X POST http://localhost:8080/shorten \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://example.com/docs"}'
+```
+
+Create a custom alias:
+
+```bash
+curl -X POST http://localhost:8080/shorten \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"https://example.com/docs","alias":"docs"}'
+```
+
+`GET /{code}` returns a `301` redirect. `GET /{code}/stats` returns the stored URL, click count, creation time, and last access time. Invalid URLs return `400`, an occupied alias returns `409`, and unknown links return `404`.
+
+Operational endpoints are available at `/actuator/health` and `/actuator/metrics`. The service records link-creation counters by type and a successful-redirect counter.
+
+## Design notes
+
+Generated codes are seven-character base62 values from `SecureRandom`, giving a 62^7 (~3.5 trillion) space. Randomness is not treated as a guarantee: the database has a unique constraint and creation retries a collision a bounded number of times.
+
+Generated links are idempotent for the same normalized URL, while custom aliases always create distinct mappings. This is convenient for retries, but it means click counts are attached to the normalized generated-link mapping rather than an individual creation event. The original URL is retained for redirecting.
+
+Redirects use `301` because the assignment defines links as permanent. URL validation only accepts HTTP(S) URLs with a host, limits input to 512 characters, and never performs outbound reachability checks.
+
+H2 keeps the take-home easy to run locally; the JPA mapping and SQL choices are intended to remain portable to Postgres. Test contexts use isolated in-memory H2 databases.
+
+## Development note
+
+AI was used as a scoped pair-programming tool for implementation and test generation, while the stack, architecture, domain rules, response behavior, alias bounds, URL cap, and review criteria were explicitly constrained. The code was kept as a layered monolith rather than expanded into speculative services.
+
+The main open production concerns are per-click event storage for richer analytics, rate limiting, caching on the redirect path, access control around operational endpoints, and eventually separating redirect reads from write traffic.
 
 TODO: raise the 512-character URL limit when product requirements warrant it.
