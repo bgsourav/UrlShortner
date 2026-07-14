@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Optional;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,10 +37,12 @@ class LinkServiceTest {
     private UrlValidator urlValidator;
 
     private LinkService linkService;
+    private SimpleMeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
-        linkService = new LinkService(linkRepository, shortCodeGenerator, urlValidator, "http://localhost:8080");
+        meterRegistry = new SimpleMeterRegistry();
+        linkService = new LinkService(linkRepository, shortCodeGenerator, urlValidator, meterRegistry, "http://localhost:8080");
     }
 
     @Test
@@ -52,6 +55,7 @@ class LinkServiceTest {
 
         assertThat(response).isEqualTo(new ShortenResponse(
                 "abc1234", "http://localhost:8080/abc1234", "https://example.com/page"));
+        assertThat(meterRegistry.get("urlshortener.links.created").tag("type", "generated").counter().count()).isEqualTo(1);
     }
 
     @Test
@@ -82,6 +86,42 @@ class LinkServiceTest {
     }
 
     @Test
+    void failsAfterExhaustingCodeCollisionRetries() {
+        when(linkRepository.findFirstByNormalizedUrl("https://example.com/page")).thenReturn(Optional.empty());
+        when(shortCodeGenerator.generate()).thenReturn("taken01");
+        when(linkRepository.saveAndFlush(any(Link.class))).thenThrow(new DataIntegrityViolationException("duplicate code"));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> linkService.create(new ShortenRequest("https://example.com/page", null)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Unable to generate a unique short code");
+
+        verify(shortCodeGenerator, times(5)).generate();
+        verify(linkRepository, times(5)).saveAndFlush(any(Link.class));
+    }
+
+    @Test
+    void createsAnAliasWithoutDeduplicatingTheUrl() {
+        when(linkRepository.saveAndFlush(any(Link.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ShortenResponse response = linkService.create(new ShortenRequest("https://example.com/page", "my_alias"));
+
+        assertThat(response.code()).isEqualTo("my_alias");
+        verify(linkRepository, never()).findFirstByNormalizedUrl(any());
+        verify(shortCodeGenerator, never()).generate();
+        assertThat(meterRegistry.get("urlshortener.links.created").tag("type", "alias").counter().count()).isEqualTo(1);
+    }
+
+    @Test
+    void mapsAnAliasCollisionToAConflictException() {
+        when(linkRepository.saveAndFlush(any(Link.class))).thenThrow(new DataIntegrityViolationException("duplicate code"));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> linkService.create(new ShortenRequest("https://example.com/page", "my_alias")))
+                .isInstanceOf(com.bgsourav.urlshortener.exception.AliasConflictException.class);
+    }
+
+    @Test
     void resolvesALinkAndRecordsTheAccess() {
         Link link = new Link("abc1234", "https://example.com/page", "https://example.com/page", null);
         when(linkRepository.findByCode("abc1234")).thenReturn(Optional.of(link));
@@ -91,6 +131,7 @@ class LinkServiceTest {
         assertThat(longUrl).isEqualTo("https://example.com/page");
         assertThat(link.getClickCount()).isEqualTo(1);
         assertThat(link.getLastAccessedAt()).isNotNull();
+        assertThat(meterRegistry.get("urlshortener.redirects").counter().count()).isEqualTo(1);
     }
 
     @Test
