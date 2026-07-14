@@ -14,6 +14,7 @@ import com.bgsourav.urlshortener.dto.ShortenResponse;
 import com.bgsourav.urlshortener.exception.AliasConflictException;
 import com.bgsourav.urlshortener.exception.LinkNotFoundException;
 import com.bgsourav.urlshortener.repository.LinkRepository;
+import com.bgsourav.urlshortener.validation.UrlValidator;
 
 @Service
 public class LinkService {
@@ -22,18 +23,22 @@ public class LinkService {
 
     private final LinkRepository linkRepository;
     private final ShortCodeGenerator shortCodeGenerator;
+    private final UrlValidator urlValidator;
     private final String baseUrl;
 
     public LinkService(
             LinkRepository linkRepository,
             ShortCodeGenerator shortCodeGenerator,
+            UrlValidator urlValidator,
             @Value("${app.base-url}") String baseUrl) {
         this.linkRepository = linkRepository;
         this.shortCodeGenerator = shortCodeGenerator;
+        this.urlValidator = urlValidator;
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
 
     public ShortenResponse create(ShortenRequest request) {
+        urlValidator.validate(request.url());
         String normalizedUrl = normalize(request.url());
         if (request.alias() != null) {
             return createAlias(request.url(), normalizedUrl, request.alias());

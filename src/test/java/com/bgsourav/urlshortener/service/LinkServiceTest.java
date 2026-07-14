@@ -21,6 +21,7 @@ import com.bgsourav.urlshortener.dto.ShortenRequest;
 import com.bgsourav.urlshortener.dto.ShortenResponse;
 import com.bgsourav.urlshortener.exception.LinkNotFoundException;
 import com.bgsourav.urlshortener.repository.LinkRepository;
+import com.bgsourav.urlshortener.validation.UrlValidator;
 
 @ExtendWith(MockitoExtension.class)
 class LinkServiceTest {
@@ -31,11 +32,14 @@ class LinkServiceTest {
     @Mock
     private ShortCodeGenerator shortCodeGenerator;
 
+    @Mock
+    private UrlValidator urlValidator;
+
     private LinkService linkService;
 
     @BeforeEach
     void setUp() {
-        linkService = new LinkService(linkRepository, shortCodeGenerator, "http://localhost:8080");
+        linkService = new LinkService(linkRepository, shortCodeGenerator, urlValidator, "http://localhost:8080");
     }
 
     @Test
