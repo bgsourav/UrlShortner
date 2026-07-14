@@ -19,6 +19,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import com.bgsourav.urlshortener.domain.Link;
 import com.bgsourav.urlshortener.dto.ShortenRequest;
 import com.bgsourav.urlshortener.dto.ShortenResponse;
+import com.bgsourav.urlshortener.exception.LinkNotFoundException;
 import com.bgsourav.urlshortener.repository.LinkRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -74,5 +75,25 @@ class LinkServiceTest {
         assertThat(response.code()).isEqualTo("free123");
         verify(shortCodeGenerator, times(2)).generate();
         verify(linkRepository, times(2)).saveAndFlush(any(Link.class));
+    }
+
+    @Test
+    void resolvesALinkAndRecordsTheAccess() {
+        Link link = new Link("abc1234", "https://example.com/page", "https://example.com/page", null);
+        when(linkRepository.findByCode("abc1234")).thenReturn(Optional.of(link));
+
+        String longUrl = linkService.resolve("abc1234");
+
+        assertThat(longUrl).isEqualTo("https://example.com/page");
+        assertThat(link.getClickCount()).isEqualTo(1);
+        assertThat(link.getLastAccessedAt()).isNotNull();
+    }
+
+    @Test
+    void rejectsAnUnknownCode() {
+        when(linkRepository.findByCode("missing")).thenReturn(Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> linkService.resolve("missing"))
+                .isInstanceOf(LinkNotFoundException.class);
     }
 }

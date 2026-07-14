@@ -6,10 +6,12 @@ import java.util.Locale;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.bgsourav.urlshortener.domain.Link;
 import com.bgsourav.urlshortener.dto.ShortenRequest;
 import com.bgsourav.urlshortener.dto.ShortenResponse;
+import com.bgsourav.urlshortener.exception.LinkNotFoundException;
 import com.bgsourav.urlshortener.repository.LinkRepository;
 
 @Service
@@ -35,6 +37,14 @@ public class LinkService {
         return linkRepository.findFirstByNormalizedUrl(normalizedUrl)
                 .map(this::toResponse)
                 .orElseGet(() -> createLink(request.url(), normalizedUrl));
+    }
+
+    @Transactional
+    public String resolve(String code) {
+        Link link = linkRepository.findByCode(code)
+                .orElseThrow(() -> new LinkNotFoundException(code));
+        link.recordAccess(java.time.Instant.now());
+        return link.getLongUrl();
     }
 
     private ShortenResponse createLink(String longUrl, String normalizedUrl) {

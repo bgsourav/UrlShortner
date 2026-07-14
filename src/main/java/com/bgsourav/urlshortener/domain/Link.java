@@ -79,4 +79,9 @@ public class Link {
     public Instant getLastAccessedAt() {
         return lastAccessedAt;
     }
+
+    public void recordAccess(Instant accessedAt) {
+        clickCount++;
+        lastAccessedAt = accessedAt;
+    }
 }
