@@ -1,6 +1,7 @@
 package com.bgsourav.urlshortener.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -8,8 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.bgsourav.urlshortener.dto.ShortenResponse;
@@ -21,7 +22,7 @@ class LinkControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private LinkService linkService;
 
     @Test
@@ -37,5 +38,16 @@ class LinkControllerTest {
                 .andExpect(jsonPath("$.code").value("abc1234"))
                 .andExpect(jsonPath("$.shortUrl").value("http://localhost:8080/abc1234"))
                 .andExpect(jsonPath("$.longUrl").value("https://example.com/page"));
+    }
+
+    @Test
+    void rejectsAnInvalidAliasBeforeCallingTheService() throws Exception {
+        mockMvc.perform(post("/shorten")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\":\"https://example.com/page\",\"alias\":\"health\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("alias must be 5-32 characters using letters, digits, underscores, or hyphens"));
+
+        verifyNoInteractions(linkService);
     }
 }

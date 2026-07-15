@@ -122,6 +122,18 @@ class LinkServiceTest {
     }
 
     @Test
+    void avoidsADoubleSlashWhenTheConfiguredBaseUrlHasATrailingSlash() {
+        Link existingLink = new Link("abc1234", "https://example.com/page", "https://example.com/page", null);
+        when(linkRepository.findFirstByNormalizedUrl("https://example.com/page")).thenReturn(Optional.of(existingLink));
+        LinkService serviceWithTrailingSlash = new LinkService(
+                linkRepository, shortCodeGenerator, urlValidator, meterRegistry, "http://localhost:8080/");
+
+        ShortenResponse response = serviceWithTrailingSlash.create(new ShortenRequest("https://example.com/page", null));
+
+        assertThat(response.shortUrl()).isEqualTo("http://localhost:8080/abc1234");
+    }
+
+    @Test
     void resolvesALinkAndRecordsTheAccess() {
         Link link = new Link("abc1234", "https://example.com/page", "https://example.com/page", null);
         when(linkRepository.findByCode("abc1234")).thenReturn(Optional.of(link));
